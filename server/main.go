@@ -8,6 +8,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/user020603/grpc-greet/interceptor"
 	pb "github.com/user020603/grpc-greet/proto"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -116,7 +117,9 @@ func main() {
 			log.Fatalf("Failed loading certificates: %v\n", err)
 		}
 
-		opts = append(opts, grpc.Creds(creds))
+		opts = append(opts, grpc.Creds(creds),
+				 grpc.ChainUnaryInterceptor(interceptor.UnaryLoggingInterceptor),
+				 grpc.ChainStreamInterceptor(interceptor.StreamLoggingInterceptor),)
 	}
 
 	s := grpc.NewServer(opts...)
