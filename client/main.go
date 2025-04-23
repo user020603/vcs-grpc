@@ -9,19 +9,32 @@ import (
 
 	pb "github.com/user020603/grpc-greet/proto"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/credentials"
 )
 
+var addr = "localhost:50051"
+
 func main() {
-	fmt.Println("Starting gRPC client...")
+	tls := true
+	opts := []grpc.DialOption{}
 
-	cc, err := grpc.Dial("localhost:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		log.Fatalf("Could not connect: %v", err)
+	if tls {
+		certFile := "../ssl/ca.crt"
+		creds, err := credentials.NewClientTLSFromFile(certFile, "")
+		if err != nil {
+			log.Fatalf("Failed to load TLS credentials")
+		}
+		opts = append(opts, grpc.WithTransportCredentials(creds))
 	}
-	defer cc.Close()
+	fmt.Println("Starting gRPC client with TLS...")
 
-	c := pb.NewGreetServiceClient(cc)
+	conn, err := grpc.Dial(addr, opts...)
+	if err != nil {
+		log.Fatalf("failed to dial: %v", err)
+	}
+	defer conn.Close()
+
+	c := pb.NewGreetServiceClient(conn)
 
 	doUnary(c)
 	doServerStreaming(c)
@@ -49,7 +62,7 @@ func doServerStreaming(c pb.GreetServiceClient) {
 	req := &pb.GreetRequest{
 		Greeting: &pb.Greeting{
 			FirstName: "ThanhNT",
-			LastName: "208",
+			LastName:  "208",
 		},
 	}
 
@@ -60,7 +73,7 @@ func doServerStreaming(c pb.GreetServiceClient) {
 	for {
 		msg, err := resStream.Recv()
 		if err == io.EOF {
-			break 
+			break
 		}
 		if err != nil {
 			log.Fatalf("Error while reading stream: %v", err)
