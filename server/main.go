@@ -10,7 +10,7 @@ import (
 
 	pb "github.com/user020603/grpc-greet/proto"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/reflection"
+	"google.golang.org/grpc/credentials"
 )
 
 type server struct {
@@ -95,21 +95,34 @@ func (*server) GreetEveryone(stream pb.GreetService_GreetEveryoneServer) error {
 	}
 }
 
-func main() {
-	fmt.Println("Starting gRPC server...")
+var addr = "localhost:50051"
 
-	lis, err := net.Listen("tcp", "0.0.0.0:50051")
+func main() {
+	lis, err := net.Listen("tcp", addr)
 	if err != nil {
-		log.Fatalf("Failed to listen: %v", err)
+		log.Fatalf("failed to listen: %v", err)
+	}
+	log.Printf("server listening at %v", addr)
+
+	opts := []grpc.ServerOption{}
+	tls := true
+
+	if tls {
+		certFile := "../ssl/server.crt"
+		keyFile := "../ssl/server.pem"
+		creds, err := credentials.NewServerTLSFromFile(certFile, keyFile)
+
+		if err != nil {
+			log.Fatalf("Failed loading certificates: %v\n", err)
+		}
+
+		opts = append(opts, grpc.Creds(creds))
 	}
 
-	s := grpc.NewServer()
+	s := grpc.NewServer(opts...)
 	pb.RegisterGreetServiceServer(s, &server{})
 
-	reflection.Register(s)
-
-	fmt.Println("Server is running on port 50051")
-	if err := s.Serve(lis); err != nil {
-		log.Fatalf("Failed to serve: %v", err)
+	if err = s.Serve(lis); err != nil {
+		log.Fatalf("failed to serve: %v", err)
 	}
 }
